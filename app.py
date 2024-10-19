@@ -1,6 +1,5 @@
 import pandas as pd
 import streamlit as st
-import plotly.express as px
 import openai
 import numpy as np
 import os
@@ -11,8 +10,9 @@ def get_openai_api_key(file_path):
     return api_key
 
 # Example usage
-api_key = get_openai_api_key('api_key.txt')
+#api_key = get_openai_api_key('api_key.txt')
 
+api_key = st.secrets["openai"]["api_key"]
 # Set up the OpenAI API key
 os.environ["OPENAI_API_KEY"] = api_key
 openai.api_key = os.getenv("OPENAI_API_KEY")
