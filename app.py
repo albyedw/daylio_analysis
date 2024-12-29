@@ -20,7 +20,7 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 
 
 # Load the data
-data = pd.read_csv('daylio_export_2024_08_06.csv')
+data = pd.read_csv('daylio_export_2024_12_29.csv')
 
 # Mapping mood to numeric values
 mapping = {'meh': 3, 'good': 4, 'rad': 5, 'bad': 2}
