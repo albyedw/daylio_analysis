@@ -78,11 +78,35 @@ def find_relevant_entries(query, top_n=5):
     top_indices = np.argsort(similarities)[-top_n:][::-1]
     return [st.session_state['combined_texts'][i] for i in top_indices]
 
+
+def recommend_similar_entries(df_long, top_n=3):
+    # Get the most recent entry
+    most_recent_entry = df_long.sort_values(by='full_date', ascending=False).iloc[0]
+    recent_text = most_recent_entry['combined']
+    recent_date = most_recent_entry['full_date']
+
+    # Embed the most recent entry
+    recent_embedding = get_embedding(recent_text)
+
+    # Compute similarities (excluding entries on the same date)
+    past_texts = df_long[df_long['full_date'] < recent_date]['combined'].tolist()
+    past_embeddings = [
+        emb for text, emb, date in zip(st.session_state['combined_texts'], st.session_state['embeddings'], df_long['full_date'])
+        if date < recent_date
+    ]
+
+    similarities = [cosine_similarity(recent_embedding, e) for e in past_embeddings]
+    top_indices = np.argsort(similarities)[-top_n:][::-1]
+    recommended = [past_texts[i] for i in top_indices]
+
+    return recent_text, recommended
+
+
 # Set app title
 st.title("Journal Chatbot & Mood Dashboard")
 
 # Create tabs for Chatbot and Dashboard
-tab1, tab2 = st.tabs(["Chatbot", "Dashboard"])
+tab1, tab2, tab3 = st.tabs(["Chatbot", "Dashboard", "Recommendations"])
 
 with tab1:
     # Chatbot tab content
@@ -116,6 +140,13 @@ with tab1:
 
         with st.chat_message('assistant'):
             st.write(assistant_message)
+
+        st.markdown("---")
+
+    #st.subheader("🧠 Content-Based Recommendations")
+
+    
+
 
 with tab2:
     st.header("Mood Dashboard")
@@ -239,3 +270,27 @@ with tab2:
                 st.success("Result: Significant difference in average mood between the two months (reject null hypothesis).")
             else:
                 st.info("Result: No significant difference in average mood between the two months (fail to reject null hypothesis).")
+
+    with tab3:
+        st.header("Recommendations")
+        recommend_topic = st.text_input("Enter a topic (e.g. stress, productivity, rest):")
+
+        if recommend_topic:
+            recommended = find_relevant_entries(recommend_topic, top_n=3)
+            st.markdown("**You might find these past entries useful:**")
+            for entry in recommended:
+                st.markdown(f"- {entry}")
+
+        st.write("---")
+        st.header("🔁 Recommendations Based on Your Most Recent Entry")
+
+        recent_text, recommendations = recommend_similar_entries(df_long)
+
+        st.subheader("📝 Most Recent Entry")
+        st.info(recent_text)
+
+        st.subheader("💡 Similar Past Entries")
+        for rec in recommendations:
+            st.write("• " + rec)
+
+
