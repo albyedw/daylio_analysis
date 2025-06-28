@@ -5,6 +5,31 @@ import numpy as np
 import openai
 from scipy.stats import ttest_ind
 
+import csv
+from datetime import datetime
+
+def save_feedback(entry_text, feedback_type, rec_index):
+    filename = 'feedback.csv'
+    fieldnames = ['timestamp', 'recommendation_index', 'feedback_type', 'entry_text']
+
+    # Prepare row data
+    row = {
+        'timestamp': datetime.now().isoformat(),
+        'recommendation_index': rec_index,
+        'feedback_type': feedback_type,  # e.g. "thumbs_up"
+        'entry_text': entry_text.replace('\n', ' ').replace('\r', ' ')[:500]  # truncate to 500 chars
+    }
+
+    # Check if file exists
+    file_exists = os.path.isfile(filename)
+
+    # Append row to CSV
+    with open(filename, 'a', newline='', encoding='utf-8') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        if not file_exists:
+            writer.writeheader()
+        writer.writerow(row)
+
 
 def get_openai_api_key(file_path):
     with open(file_path, 'r') as file:
@@ -13,8 +38,8 @@ def get_openai_api_key(file_path):
 
 # Load OpenAI key and set environment
 # Example usage
-#api_key = get_openai_api_key('api_key.txt')
-api_key = st.secrets["openai"]["api_key"]
+api_key = get_openai_api_key('api_key.txt')
+#api_key = st.secrets["openai"]["api_key"]
 # Set up the OpenAI API key
 os.environ["OPENAI_API_KEY"] = api_key
 openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -293,7 +318,27 @@ with tab2:
         st.info(recent_text)
 
         st.subheader("💡 Similar Past Entries")
-        for rec in recommendations:
-            st.write("• " + rec)
+
+        if recommendations:
+    # 1st recommended entry with thumbs up
+            st.write("• " + recommendations[0])
+            if st.button("👍", key="thumbs_up_1"):
+                save_feedback(recommendations[0], "thumbs_up", 1)
+                st.success("Thanks for the feedback for entry 1!")
+
+            # 2nd recommended entry with thumbs up
+            if len(recommendations) > 1:
+                st.write("• " + recommendations[1])
+                if st.button("👍", key="thumbs_up_2"):
+                    save_feedback(recommendations[1], "thumbs_up", 2)
+                    st.success("Thanks for the feedback for entry 2!")
+
+            # 3rd recommended entry with thumbs up
+            if len(recommendations) > 2:
+                st.write("• " + recommendations[2])
+                if st.button("👍", key="thumbs_up_3"):
+                    save_feedback(recommendations[2], "thumbs_up", 3)
+                    st.success("Thanks for the feedback for entry 3!")
+
 
 
