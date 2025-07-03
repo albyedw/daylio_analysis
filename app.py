@@ -8,16 +8,17 @@ from scipy.stats import ttest_ind
 import csv
 from datetime import datetime
 
-def save_feedback(entry_text, feedback_type, rec_index):
+def save_feedback(text, recommendation, feedback_type, rec_index):
     filename = 'feedback.csv'
-    fieldnames = ['timestamp', 'recommendation_index', 'feedback_type', 'entry_text']
+    fieldnames = ['timestamp', 'text', 'recommendation_index', 'feedback_type', 'recommendation']
 
     # Prepare row data
     row = {
         'timestamp': datetime.now().isoformat(),
+        'text' : text,
         'recommendation_index': rec_index,
         'feedback_type': feedback_type,  # e.g. "thumbs_up"
-        'entry_text': entry_text.replace('\n', ' ').replace('\r', ' ')[:500]  # truncate to 500 chars
+        'recommendation': recommendation.replace('\n', ' ').replace('\r', ' ')[:500]  # truncate to 500 chars
     }
 
     # Check if file exists
@@ -128,6 +129,45 @@ def recommend_similar_entries(df_long, top_n=3):
     recommended = [past_texts[i] for i in top_indices]
 
     return recent_text, recommended
+
+import random
+
+def recommend_similar_entries_random(df_long, top_n=3):
+    # Filter entries with at least one earlier entry (so recommendations are possible)
+    valid_entries = df_long[df_long['full_date'] > df_long['full_date'].min()]
+    
+    if valid_entries.empty:
+        return None, []
+
+    # Choose a random entry
+    random_entry = valid_entries.sample(1).iloc[0]
+    random_text = random_entry['combined']
+    random_date = random_entry['full_date']
+
+    # Embed the random entry
+    random_embedding = get_embedding(random_text)
+
+    # Get past entries before the random one
+    past_entries = df_long[df_long['full_date'] < random_date]
+    past_texts = past_entries['combined'].tolist()
+    past_dates = past_entries['full_date'].tolist()
+
+    # Get embeddings only for past entries
+    past_embeddings = [
+        emb for text, emb, date in zip(st.session_state['combined_texts'], st.session_state['embeddings'], df_long['full_date'])
+        if date < random_date
+    ]
+
+    if not past_embeddings:
+        return random_text, []
+
+    # Compute similarities and select top N
+    similarities = [cosine_similarity(random_embedding, e) for e in past_embeddings]
+    top_indices = np.argsort(similarities)[-top_n:][::-1]
+    recommended = [past_texts[i] for i in top_indices]
+
+    return random_text, recommended
+
 
 
 # Set app title
@@ -300,19 +340,10 @@ with tab2:
                 st.info("Result: No significant difference in average mood between the two months (fail to reject null hypothesis).")
 
     with tab3:
-        st.header("Recommendations")
-        recommend_topic = st.text_input("Enter a topic (e.g. stress, productivity, rest):")
 
-        if recommend_topic:
-            recommended = find_relevant_entries(recommend_topic, top_n=3)
-            st.markdown("**You might find these past entries useful:**")
-            for entry in recommended:
-                st.markdown(f"- {entry}")
-
-        st.write("---")
         st.header("🔁 Recommendations Based on Your Most Recent Entry")
 
-        recent_text, recommendations = recommend_similar_entries(df_long)
+        recent_text, recommendations = recommend_similar_entries_random(df_long)
 
         st.subheader("📝 Most Recent Entry")
         st.info(recent_text)
@@ -320,25 +351,22 @@ with tab2:
         st.subheader("💡 Similar Past Entries")
 
         if recommendations:
-    # 1st recommended entry with thumbs up
-            st.write("• " + recommendations[0])
-            if st.button("👍", key="thumbs_up_1"):
-                save_feedback(recommendations[0], "thumbs_up", 1)
-                st.success("Thanks for the feedback for entry 1!")
+            for i, rec in enumerate(recommendations[:3]):
+                st.write(f"• {rec}")
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    if st.button("👎", key=f"thumbs_down_{i}"):
+                        save_feedback(recent_text, rec, "thumbs_down", i + 1)
+                        st.success(f"Thanks for the feedback for entry {i + 1}!")
+                with col2:
+                    if st.button("😐", key=f"neutral_{i}"):
+                        save_feedback(recent_text, rec, "neutral", i + 1)
+                        st.info(f"Noted neutral feedback for entry {i + 1}.")
+                with col3:
+                    if st.button("👍", key=f"thumbs_up_{i}"):
+                        save_feedback(recent_text, rec, "thumbs_up", i + 1)
+                        st.warning(f"Noted thumbs up for entry {i + 1}.")
 
-            # 2nd recommended entry with thumbs up
-            if len(recommendations) > 1:
-                st.write("• " + recommendations[1])
-                if st.button("👍", key="thumbs_up_2"):
-                    save_feedback(recommendations[1], "thumbs_up", 2)
-                    st.success("Thanks for the feedback for entry 2!")
-
-            # 3rd recommended entry with thumbs up
-            if len(recommendations) > 2:
-                st.write("• " + recommendations[2])
-                if st.button("👍", key="thumbs_up_3"):
-                    save_feedback(recommendations[2], "thumbs_up", 3)
-                    st.success("Thanks for the feedback for entry 3!")
 
 
 
