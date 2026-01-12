@@ -32,15 +32,15 @@ def save_feedback(text, recommendation, feedback_type, rec_index):
         writer.writerow(row)
 
 
-def get_openai_api_key(file_path):
-    with open(file_path, 'r') as file:
-        api_key = file.read().strip()
-    return api_key
+# def get_openai_api_key(file_path):
+#     with open(file_path, 'r') as file:
+#         api_key = file.read().strip()
+#     return api_key
 
-# Load OpenAI key and set environment
-# Example usage
-api_key = get_openai_api_key('api_key.txt')
-#api_key = st.secrets["openai"]["api_key"]
+# # Load OpenAI key and set environment
+# # Example usage
+# api_key = get_openai_api_key('api_key.txt')
+api_key = st.secrets["openai"]["api_key"]
 # Set up the OpenAI API key
 os.environ["OPENAI_API_KEY"] = api_key
 openai.api_key = os.getenv("OPENAI_API_KEY")
